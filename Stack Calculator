@@ -1,0 +1,91 @@
+import java.util.Stack;
+
+public class Main {
+
+  public static void main(String[] args) {
+    String equation = "(3-4^2)*8";
+    System.out.println("Equation: " + equation);
+    try {
+      double result = evaluate(equation);
+      System.out.println("Result: " + result);
+    } catch (Exception e) {
+      System.out.println("Error: " + e.getMessage());
+    }
+  }
+
+  public static double evaluate(String expression) {
+    Stack<Double> values = new Stack<>();
+    Stack<Character> ops = new Stack<>();
+    expression = expression.replaceAll("\\s+", "");
+
+    for (int i = 0; i < expression.length(); i++) {
+      char c = expression.charAt(i);
+
+      if (Character.isDigit(c) || c == '.') {
+        StringBuilder sbuf = new StringBuilder();
+        while (i < expression.length() && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+          sbuf.append(expression.charAt(i++));
+        }
+        values.push(Double.parseDouble(sbuf.toString()));
+        i--;
+      }
+
+      else if (c == '(') {
+        ops.push(c);
+      }
+
+      else if (c == ')') {
+        while (ops.peek() != '(') {
+          values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+        }
+        ops.pop();
+      }
+
+      else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^') {
+        while (!ops.isEmpty() && hasPrecedence(c, ops.peek())) {
+          values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+        }
+        ops.push(c);
+      }
+    }
+
+    while (!ops.isEmpty()) {
+      values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+    }
+
+    return values.pop();
+  }
+
+  public static boolean hasPrecedence(char op1, char op2) {
+    if (op2 == '(' || op2 == ')') {
+      return false;
+    }
+    if (op1 == '^' && (op2 == '+' || op2 == '-' || op2 == '*' || op2 == '/')) {
+      return false;
+    }
+    if ((op1 == '*' || op1 == '/') && (op2 == '+' || op2 == '-')) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  public static double applyOp(char op, double b, double a) {
+    switch (op) {
+      case '+':
+        return a + b;
+      case '-':
+        return a - b;
+      case '*':
+        return a * b;
+      case '/':
+        if (b == 0) {
+          throw new UnsupportedOperationException("Cannot divide by zero");
+        }
+        return a / b;
+      case '^':
+        return Math.pow(a, b);
+    }
+    return 0;
+  }
+}
