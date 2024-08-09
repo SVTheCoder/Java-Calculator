@@ -14,6 +14,7 @@ public class Main {
         System.out.println("5. Exponentiation (^)");
         System.out.println("6. Division (Quotient & Remainder)");
         System.out.println("7. Factorial (!)");
+        System.out.println("8. Square Root (√)");
 
         int choice = scanner.nextInt();
         double num1 = 0.0;
@@ -85,8 +86,15 @@ public class Main {
             default:
                 System.out.println("Invalid choice! Please choose a valid operation.");
                 break;
+                case 8: // Square Root
+                    System.out.print("Enter the number: ");
+                    num1 = scanner.nextDouble();
+                    result = Math.sqrt(num1);
+                    System.out.println("Result: √" + num1 + " = " + result);
+                    break;
         }
 
        
     }
+    
 }
