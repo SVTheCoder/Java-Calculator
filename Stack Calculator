@@ -1,91 +1,195 @@
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.util.Scanner;
 import java.util.Stack;
 
 public class Main {
 
-  public static void main(String[] args) {
-    String equation = "(3-4^2)*8";
-    System.out.println("Equation: " + equation);
-    try {
-      double result = evaluate(equation);
-      System.out.println("Result: " + result);
-    } catch (Exception e) {
-      System.out.println("Error: " + e.getMessage());
-    }
-  }
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        boolean continueEvaluation = true;
 
-  public static double evaluate(String expression) {
-    Stack<Double> values = new Stack<>();
-    Stack<Character> ops = new Stack<>();
-    expression = expression.replaceAll("\\s+", "");
+        while (continueEvaluation) {
+            System.out.print("Enter an equation to evaluate: ");
+            String equation = scanner.nextLine();
+            System.out.println("Equation: " + equation);
 
-    for (int i = 0; i < expression.length(); i++) {
-      char c = expression.charAt(i);
+            try {
+                evaluate(equation);
+            } catch (Exception e) {
+                e.printStackTrace(); // Print stack trace for more detailed error information
+            }
 
-      if (Character.isDigit(c) || c == '.') {
-        StringBuilder sbuf = new StringBuilder();
-        while (i < expression.length() && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
-          sbuf.append(expression.charAt(i++));
+            // Ask the user if they want to continue
+            System.out.print("Do you want to evaluate another equation? (yes/no): ");
+            String userChoice = scanner.nextLine().trim().toLowerCase();
+
+            if (!userChoice.equals("yes")) {
+                continueEvaluation = false;
+            }
         }
-        values.push(Double.parseDouble(sbuf.toString()));
-        i--;
-      }
 
-      else if (c == '(') {
-        ops.push(c);
-      }
+        System.out.println("Thank you for using the Equation Evaluator. Goodbye!");
+    }
 
-      else if (c == ')') {
-        while (ops.peek() != '(') {
-          values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+    public static void evaluate(String expression) {
+        Stack<BigDecimal> values = new Stack<>();
+        Stack<Character> ops = new Stack<>();
+        expression = expression.replaceAll("\\s+", "");
+
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+
+            if (c == '-' && (i == 0 || expression.charAt(i - 1) == '(' || isOperator(expression.charAt(i - 1)))) {
+                // Handle negative numbers
+                StringBuilder sbuf = new StringBuilder();
+                sbuf.append(c);
+                i++;
+                while (i < expression.length()
+                        && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                    sbuf.append(expression.charAt(i++));
+                }
+                values.push(new BigDecimal(sbuf.toString()));
+                i--;
+            } else if (Character.isDigit(c) || c == '.') {
+                StringBuilder sbuf = new StringBuilder();
+                while (i < expression.length()
+                        && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                    sbuf.append(expression.charAt(i++));
+                }
+                values.push(new BigDecimal(sbuf.toString()));
+                i--;
+            } else if (c == '(') {
+                ops.push(c);
+            } else if (c == ')') {
+                while (!ops.isEmpty() && ops.peek() != '(') {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                if (ops.isEmpty() || ops.peek() != '(') {
+                    throw new IllegalArgumentException("Mismatched parentheses");
+                }
+                ops.pop(); // Remove '('
+            } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '#') {
+                while (!ops.isEmpty() && hasPrecedence(c, ops.peek())) {
+                    values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+                }
+                ops.push(c);
+            } else if (c == '√') {
+                // Process square root immediately
+                if (i + 1 < expression.length()
+                        && (Character.isDigit(expression.charAt(i + 1)) || expression.charAt(i + 1) == '-')) {
+                    StringBuilder sbuf = new StringBuilder();
+                    i++;
+                    while (i < expression.length()
+                            && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                        sbuf.append(expression.charAt(i++));
+                    }
+                    BigDecimal num = new BigDecimal(sbuf.toString());
+                    values.push(sqrt(num, 10)); // Use scale of 10 for square root
+                    i--;
+                } else {
+                    throw new IllegalArgumentException("Invalid expression after '√'");
+                }
+            } else if (c == '!') {
+                // Process factorial immediately
+                BigDecimal num = values.pop();
+                values.push(factorial(num));
+            } else if (c == '#') {
+                // Process quotient and remainder immediately
+                if (values.size() < 2) {
+                    System.out.println("Error: Insufficient values for # operation");
+                    return; // Skip further processing
+                }
+                BigDecimal num2 = values.pop();
+                BigDecimal num1 = values.pop();
+                BigDecimal[] qr = num1.divideAndRemainder(num2);
+                System.out.println("Quotient: " + qr[0]);
+                System.out.println("Remainder: " + qr[1]);
+                return; // Skip further processing
+            }
         }
-        ops.pop();
-      }
 
-      else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '^') {
-        while (!ops.isEmpty() && hasPrecedence(c, ops.peek())) {
-          values.push(applyOp(ops.pop(), values.pop(), values.pop()));
+        while (!ops.isEmpty()) {
+            char op = ops.pop();
+            if (values.size() < 2) {
+                throw new IllegalArgumentException("Insufficient values for operation " + op);
+            }
+            values.push(applyOp(op, values.pop(), values.pop()));
         }
-        ops.push(c);
-      }
-    }
 
-    while (!ops.isEmpty()) {
-      values.push(applyOp(ops.pop(), values.pop(), values.pop()));
-    }
-
-    return values.pop();
-  }
-
-  public static boolean hasPrecedence(char op1, char op2) {
-    if (op2 == '(' || op2 == ')') {
-      return false;
-    }
-    if (op1 == '^' && (op2 == '+' || op2 == '-' || op2 == '*' || op2 == '/')) {
-      return false;
-    }
-    if ((op1 == '*' || op1 == '/') && (op2 == '+' || op2 == '-')) {
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  public static double applyOp(char op, double b, double a) {
-    switch (op) {
-      case '+':
-        return a + b;
-      case '-':
-        return a - b;
-      case '*':
-        return a * b;
-      case '/':
-        if (b == 0) {
-          throw new UnsupportedOperationException("Cannot divide by zero");
+        if (!values.isEmpty()) {
+            System.out.println("Result: " + values.pop());
+        } else {
+            System.out.println("Error: No result found");
         }
-        return a / b;
-      case '^':
-        return Math.pow(a, b);
     }
-    return 0;
-  }
+
+    public static boolean hasPrecedence(char op1, char op2) {
+        if (op2 == '(' || op2 == ')') {
+            return false;
+        }
+        if (op1 == '^' || op1 == '√') {
+            return op2 != '^' && op2 != '√';
+        }
+        if ((op1 == '*' || op1 == '/' || op1 == '#') && (op2 == '+' || op2 == '-')) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public static BigDecimal applyOp(char op, BigDecimal b, BigDecimal a) {
+        switch (op) {
+            case '+':
+                return a.add(b);
+            case '-':
+                return a.subtract(b);
+            case '*':
+                return a.multiply(b);
+            case '/':
+                if (b.compareTo(BigDecimal.ZERO) == 0) {
+                    throw new UnsupportedOperationException("Cannot divide by zero");
+                }
+                return a.divide(b, 10, RoundingMode.HALF_UP);
+            case '^':
+                if (b.compareTo(BigDecimal.ZERO) < 0) {
+                    // Handle negative exponents
+                    return BigDecimal.ONE.divide(a.pow(b.negate().intValueExact()), 10, RoundingMode.HALF_UP);
+                } else {
+                    return a.pow(b.intValueExact());
+                }
+            case '√':
+                return sqrt(a, 10); // Square root is unary, use 'a' for input
+            case '#':
+                BigDecimal[] qr = a.divideAndRemainder(b);
+                System.out.println("Quotient: " + qr[0]);
+                System.out.println("Remainder: " + qr[1]);
+                return qr[1]; // Ensure this returns the remainder
+        }
+        return BigDecimal.ZERO;
+    }
+
+    public static BigDecimal factorial(BigDecimal n) {
+        if (n.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Factorial is not defined for negative numbers.");
+        }
+        BigInteger result = BigInteger.ONE;
+        for (int i = 1; i <= n.intValue(); i++) {
+            result = result.multiply(BigInteger.valueOf(i));
+        }
+        return new BigDecimal(result);
+    }
+
+    public static BigDecimal sqrt(BigDecimal value, int scale) {
+        if (value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Square root is not defined for negative numbers.");
+        }
+        BigDecimal x = new BigDecimal(Math.sqrt(value.doubleValue()));
+        return x.setScale(scale, RoundingMode.HALF_UP);
+    }
+
+    public static boolean isOperator(char c) {
+        return c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '#';
+    }
 }
