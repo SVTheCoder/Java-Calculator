@@ -1,0 +1,304 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+
+public class Main extends JFrame implements ActionListener {
+
+    // Components of the calculator
+    private JTextField display;
+    private JPanel panel;
+    private JButton[] numberButtons;
+    private JButton addButton, subButton, mulButton, divButton, decButton, equButton, delButton, clrButton, negButton;
+    private JButton sqrtButton, expButton, facButton;
+    private String operator = "";
+    private BigDecimal num1, result;
+    private boolean isOperatorClicked = false;
+
+    // Define maximum and minimum limits
+    private final BigDecimal MAX_LIMIT = new BigDecimal("1e+1024");
+    private final BigDecimal MIN_LIMIT = new BigDecimal("-1e+1024");
+    private final BigDecimal SCI_NOTATION_THRESHOLD = new BigDecimal("999999999999");
+    private final DecimalFormat sciFormat = new DecimalFormat("0.###E0");
+
+    public Main() {
+        // Setting up the frame
+        setTitle("Simple Calculator");
+        setSize(400, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // Display field
+        display = new JTextField();
+        display.setFont(new Font("Arial", Font.PLAIN, 36));
+        display.setEditable(false);
+        display.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                handleKeyInput(e);
+            }
+        });
+        add(display, BorderLayout.NORTH);
+
+        // Panel for buttons
+        panel = new JPanel();
+        panel.setLayout(new GridLayout(5, 4, 10, 10));
+
+        // Number buttons (0-9)
+        numberButtons = new JButton[10];
+        for (int i = 0; i < 10; i++) {
+            numberButtons[i] = new JButton(String.valueOf(i));
+            numberButtons[i].setFont(new Font("Arial", Font.PLAIN, 36));
+            numberButtons[i].addActionListener(this);
+            panel.add(numberButtons[i]);
+        }
+
+        // Other buttons
+        addButton = new JButton("+");
+        subButton = new JButton("-");
+        mulButton = new JButton("*");
+        divButton = new JButton("/");
+        decButton = new JButton(".");
+        equButton = new JButton("=");
+        delButton = new JButton("Del");
+        clrButton = new JButton("Clr");
+        sqrtButton = new JButton("√");
+        expButton = new JButton("^");
+        facButton = new JButton("!");
+        negButton = new JButton("(-)");
+
+        // Set font for all buttons
+        JButton[] functionButtons = {addButton, subButton, mulButton, divButton, decButton, equButton, delButton, clrButton, sqrtButton, expButton, facButton, negButton};
+        for (JButton button : functionButtons) {
+            button.setFont(new Font("Arial", Font.PLAIN, 36));
+            button.addActionListener(this);
+            panel.add(button);
+        }
+
+        // Adding the panel to the frame
+        add(panel, BorderLayout.CENTER);
+
+        // Setting the frame to be visible
+        setVisible(true);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        for (int i = 0; i < 10; i++) {
+            if (e.getSource() == numberButtons[i]) {
+                if (isOperatorClicked) {
+                    display.setText("");
+                    isOperatorClicked = false;
+                }
+                display.setText(display.getText() + i);
+            }
+        }
+        if (e.getSource() == decButton) {
+            if (!display.getText().contains(".")) {
+                display.setText(display.getText() + ".");
+            }
+        }
+        if (e.getSource() == negButton) {
+            if (display.getText().isEmpty() || isOperatorClicked) {
+                display.setText("-");
+                isOperatorClicked = false;
+            } else if (display.getText().startsWith("-")) {
+                display.setText(display.getText().substring(1));
+            } else {
+                display.setText("-" + display.getText());
+            }
+        }
+        if (e.getSource() == addButton) {
+            performOperation();
+            operator = "+";
+            isOperatorClicked = true;
+        }
+        if (e.getSource() == subButton) {
+            performOperation();
+            operator = "-";
+            isOperatorClicked = true;
+        }
+        if (e.getSource() == mulButton) {
+            performOperation();
+            operator = "*";
+            isOperatorClicked = true;
+        }
+        if (e.getSource() == divButton) {
+            performOperation();
+            operator = "/";
+            isOperatorClicked = true;
+        }
+        if (e.getSource() == sqrtButton) {
+            num1 = new BigDecimal(display.getText());
+            if (num1.compareTo(BigDecimal.ZERO) < 0) {
+                display.setText("Error");
+            } else {
+                result = new BigDecimal(Math.sqrt(num1.doubleValue()));
+                checkLimit(result);
+            }
+        }
+        if (e.getSource() == expButton) {
+            performOperation();
+            operator = "^";
+            isOperatorClicked = true;
+        }
+        if (e.getSource() == facButton) {
+            num1 = new BigDecimal(display.getText());
+            if (num1.compareTo(BigDecimal.ZERO) < 0) {
+                display.setText("Error");
+            } else {
+                BigDecimal result = factorial(num1);
+                checkLimit(result);
+            }
+        }
+        if (e.getSource() == equButton) {
+            performOperation();
+            operator = "";
+        }
+        if (e.getSource() == clrButton) {
+            display.setText("");
+            operator = "";
+            num1 = null;
+            result = null;
+        }
+        if (e.getSource() == delButton) {
+            String str = display.getText();
+            display.setText(str.length() > 0 ? str.substring(0, str.length() - 1) : "");
+        }
+    }
+
+    private void handleKeyInput(KeyEvent e) {
+        char key = e.getKeyChar();
+        if (Character.isDigit(key)) {
+            if (isOperatorClicked) {
+                display.setText("");
+                isOperatorClicked = false;
+            }
+            display.setText(display.getText() + key);
+        } else if (key == '.') {
+            if (!display.getText().contains(".")) {
+                display.setText(display.getText() + ".");
+            }
+        } else if (key == '+') {
+            performOperation();
+            operator = "+";
+            isOperatorClicked = true;
+        } else if (key == '-') {
+            performOperation();
+            operator = "-";
+            isOperatorClicked = true;
+        } else if (key == '*') {
+            performOperation();
+            operator = "*";
+            isOperatorClicked = true;
+        } else if (key == '/') {
+            performOperation();
+            operator = "/";
+            isOperatorClicked = true;
+        } else if (key == '^') {
+            performOperation();
+            operator = "^";
+            isOperatorClicked = true;
+        } else if (key == '√') {
+            num1 = new BigDecimal(display.getText());
+            if (num1.compareTo(BigDecimal.ZERO) < 0) {
+                display.setText("Error");
+            } else {
+                result = new BigDecimal(Math.sqrt(num1.doubleValue()));
+                checkLimit(result);
+            }
+        } else if (key == '!') {
+            num1 = new BigDecimal(display.getText());
+            if (num1.compareTo(BigDecimal.ZERO) < 0) {
+                display.setText("Error");
+            } else {
+                BigDecimal result = factorial(num1);
+                checkLimit(result);
+            }
+        } else if (key == '=' || e.getKeyCode() == KeyEvent.VK_ENTER) {
+            performOperation();
+            operator = "";
+        } else if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
+            String str = display.getText();
+            display.setText(str.length() > 0 ? str.substring(0, str.length() - 1) : "");
+        } else if (e.getKeyCode() == KeyEvent.VK_DELETE) {
+            display.setText("");
+            operator = "";
+            num1 = null;
+            result = null;
+        }
+    }
+
+    private void performOperation() {
+        if (num1 == null) {
+            num1 = new BigDecimal(display.getText());
+        } else {
+            BigDecimal num2 = new BigDecimal(display.getText());
+            switch (operator) {
+                case "+":
+                    num1 = num1.add(num2);
+                    break;
+                case "-":
+                    num1 = num1.subtract(num2);
+                    break;
+                case "*":
+                    num1 = num1.multiply(num2);
+                    break;
+                case "/":
+                    if (num2.compareTo(BigDecimal.ZERO) == 0) {
+                        display.setText("Undefined");
+                        num1 = null; // Reset num1 to prevent further operations
+                        operator = ""; // Reset operator to prevent further operations
+                        return;
+                    }
+                    num1 = num1.divide(num2, 10, BigDecimal.ROUND_HALF_UP);
+                    break;
+                case "^":
+                    num1 = num1.pow(num2.intValue());
+                    break;
+            }
+            checkLimit(num1);
+        }
+    }
+
+    private BigDecimal factorial(BigDecimal n) {
+        BigDecimal result = BigDecimal.ONE;
+        for (BigDecimal i = BigDecimal.ONE; i.compareTo(n) <= 0; i = i.add(BigDecimal.ONE)) {
+            result = result.multiply(i);
+            // Check for limit to avoid overflow during calculation
+            if (result.compareTo(MAX_LIMIT) > 0) {
+                return MAX_LIMIT;  // Return infinity as the factorial result
+            }
+        }
+        return result;
+    }
+
+    private void checkLimit(BigDecimal result) {
+        if (result.compareTo(MAX_LIMIT) > 0) {
+            display.setText("Infinity");
+        } else if (result.compareTo(MIN_LIMIT) < 0) {
+            display.setText("-Infinity");
+        } else if (result.abs().compareTo(SCI_NOTATION_THRESHOLD) > 0) {
+            // Format the number in scientific notation
+            display.setText(formatScientific(result));
+        } else {
+            // Remove trailing zeros and display the number in plain format
+            display.setText(result.stripTrailingZeros().toPlainString());
+        }
+        num1 = null; // Reset num1 to prevent further operations
+        operator = ""; // Reset operator to prevent further operations
+    }
+
+    private String formatScientific(BigDecimal number) {
+        // Use BigDecimal's scientific notation formatting
+        return sciFormat.format(number);
+    }
+
+    public static void main(String[] args) {
+        new Main();
+    }
+}
